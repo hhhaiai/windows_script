@@ -1,20 +1,20 @@
 @echo off
 setlocal
-echo GPP - 极简Git自动化工具
-echo 正在执行提交检查...
+echo GPP - Git Push Plus Tool
+echo Checking for changes...
 
-:: 1. 提交所有变更（仅当有修改时）
+:: 1. Commit all changes (only when modified)
 git diff --quiet --exit-code || (
     git add . 
-    git commit -am "update %date% %time%" >nul && echo 变更已提交
+    git commit -am "update %date% %time%" >nul && echo Changes committed
 )
 
-:: 2. 推送所有提交（智能处理首次推送）
+:: 2. Push all commits (smart handling for first push)
 git rev-parse --abbrev-ref @{u} >nul 2>&1 && (
-    git push 2>&1 | find "Everything up-to-date" >nul || (git push && echo 推送完成)
+    git push 2>&1 | find "Everything up-to-date" >nul || (git push && echo Push completed)
 ) || (
-    git push -u origin HEAD && echo 首次推送完成
+    git push -u origin HEAD && echo First push completed
 )
 
-echo 操作完成！
+echo Operation completed!
 pause
