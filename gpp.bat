@@ -11,9 +11,9 @@ git diff --quiet --exit-code || (
 
 :: 2. Push all commits (smart handling for first push)
 git rev-parse --abbrev-ref @{u} >nul 2>&1 && (
-    git push 2>&1 | find "Everything up-to-date" >nul || (git push && echo Push completed)
+    git status | find "ahead of" >nul && (git push && echo Push completed) || echo Already up to date
 ) || (
-    git push
+    git push -u origin HEAD && echo First push completed
 )
 
 echo Operation completed!
