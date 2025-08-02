@@ -2,39 +2,30 @@
 setlocal enabledelayedexpansion
 
 :: ============================================================================
-:: GPP - Git Push Plus (v5.2 - Bulletproof Edition)
-:: A robust script to auto-commit and push changes, designed to withstand
-:: cross-shell invocation issues (e.g., from PowerShell).
+:: GPP - The Final Version (v6.0)
+:: Developed with invaluable user feedback.
+:: This version uses in-memory processing and avoids all temporary files.
 :: ============================================================================
 
-echo GPP - Git Push Plus (Version 5.2 - Bulletproof)
+echo GPP - Git Push Plus (Version 6.0 - Final)
 
-:: Define the warning message in a standard variable to avoid delayed expansion issues with '!'.
-set "WARNING_MSG=[!] Using generic commit message "chore: auto-update"."
-
-:: -----------------------------------------------------------------------------
-:: Part 1: Commit local changes (if any)
-:: -----------------------------------------------------------------------------
+:: --- Part 1: Commit local changes (if any) ----------------------------------
 echo(
 echo [1/2] Checking for local changes...
 
 git diff HEAD --quiet --exit-code
 if %errorlevel% neq 0 (
     echo      -> Uncommitted changes detected. Proceeding with auto-commit.
-    :: Echo the variable using standard '%' expansion, which is safe.
-    echo      %WARNING_MSG%
+    :: Removed the problematic '!' character entirely for maximum compatibility.
+    echo      -> Using generic commit message "chore: auto-update".
     git add .
-    :: Robustly silence the commit command by redirecting BOTH stdout and stderr.
-    :: This prevents asynchronous output stream conflicts.
     git commit -m "chore: auto-update" >nul 2>&1
     echo      -> Changes committed successfully.
 ) else (
     echo      -> No local changes to commit.
 )
 
-:: -----------------------------------------------------------------------------
-:: Part 2: Push commits to remote (if ahead)
-:: -----------------------------------------------------------------------------
+:: --- Part 2: Push commits to remote (if ahead) ------------------------------
 echo(
 echo [2/2] Checking for commits to push...
 
@@ -45,14 +36,19 @@ if %errorlevel% neq 0 (
     echo      -> No upstream branch configured. Attempting initial push...
     git push --set-upstream origin !CURRENT_BRANCH!
 ) else (
-    set "GIT_STATUS_TMP=%TEMP%\git_status_output.tmp"
-    git status --porcelain=v2 --branch > "%GIT_STATUS_TMP%"
-    
+    :: THE CORE FIX: Process command output in-memory without temp files.
+    :: Initialize 'ahead' count to 0.
     set "ahead=0"
-    for /f "tokens=3" %%a in ('findstr "# branch.ab" "%GIT_STATUS_TMP%"') do (
-        set "ahead=%%a"
+
+    :: Use a 'for /f' loop with an escaped pipe ('^|') to capture the output
+    :: of 'git status' after filtering it with 'findstr'.
+    :: This is the most robust method available in pure Batch.
+    for /f "tokens=3" %%a in ('git status --porcelain=v2 --branch ^| findstr "# branch.ab"') do (
+        :: The token will be something like "+1". We need the number.
+        set "ahead_raw=%%a"
+        :: Remove the '+' sign using string substitution.
+        set "ahead=!ahead_raw:+=!"
     )
-    if exist "%GIT_STATUS_TMP%" del "%GIT_STATUS_TMP%"
 
     if !ahead! gtr 0 (
         echo      -> Local branch is !ahead! commit(s) ahead. Pushing...
