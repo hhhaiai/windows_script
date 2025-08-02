@@ -1,78 +1,60 @@
 @echo off
 setlocal enabledelayedexpansion
 
-echo GPP - Git Push Plus (DEBUG Version)
-
-:: Define a temporary file for output
-set "GIT_STATUS_TMP=%TEMP%\git_status_output.tmp"
+echo GPP - Git Push Plus (Stable Version 5.0)
 
 :: -----------------------------------------------------------------------------
 :: Part 1: Commit local changes (if any)
 :: -----------------------------------------------------------------------------
-echo Checking for local changes...
+echo(
+echo [1/2] Checking for local changes...
 
+:: A single, robust command to check for ANY uncommitted changes.
 git diff HEAD --quiet --exit-code
 if %errorlevel% neq 0 (
-    echo.
-    echo [INFO] Uncommitted changes detected. Proceeding with auto-commit.
-    echo [WARNING] Using generic commit message "chore: auto-update".
-    echo.
+    echo      -> Uncommitted changes detected. Proceeding with auto-commit.
+    echo      [!] Using generic commit message "chore: auto-update".
     git add .
     git commit -m "chore: auto-update" >nul
-    echo Changes committed successfully.
+    echo      -> Changes committed successfully.
 ) else (
-    echo No local changes to commit.
+    echo      -> No local changes to commit.
 )
 
 :: -----------------------------------------------------------------------------
 :: Part 2: Push commits to remote (if ahead)
 :: -----------------------------------------------------------------------------
-echo.
-echo Checking for commits to push...
+echo(
+echo [2/2] Checking for commits to push...
 
-git rev-parse --abbrev-ref @{u} >nul 2>&1
+:: Get the current branch name
+for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "CURRENT_BRANCH=%%i"
+
+:: Robustly check if the current branch has a configured upstream remote.
+git config "branch.!CURRENT_BRANCH!.remote" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo No upstream branch configured. Attempting initial push...
-    for /f %%i in ('git rev-parse --abbrev-ref HEAD') do (
-        git push --set-upstream origin %%i
-    )
-) else (
-    :: --- ROBUST PUSH CHECK ---
-    echo [DEBUG] Getting git status and writing to %GIT_STATUS_TMP%
-    
-    :: 1. Redirect full output to a temp file
+    echo      -> No upstream branch configured. Attempting initial push...
+    git push --set-upstream origin !CURRENT_BRANCH!
+) else {
+    :: Get ahead/behind counts using the stable temp file method.
+    set "GIT_STATUS_TMP=%TEMP%\git_status_output.tmp"
     git status --porcelain=v2 --branch > "%GIT_STATUS_TMP%"
     
-    :: [DEBUG] Show the full content of the temp file
-    echo [DEBUG] --- Content of temp file START ---
-    type "%GIT_STATUS_TMP%"
-    echo [DEBUG] --- Content of temp file END ---
-
     set "ahead=0"
-    
-    :: 2. Use findstr on the file and process its output with FOR
-    echo [DEBUG] Running findstr on the temp file.
     for /f "tokens=3" %%a in ('findstr "# branch.ab" "%GIT_STATUS_TMP%"') do (
-        echo [DEBUG] Found line, token 3 is '%%a'.
         set "ahead=%%a"
     )
-
-    echo [DEBUG] Value of 'ahead' after loop is: !ahead!
+    if exist "%GIT_STATUS_TMP%" del "%GIT_STATUS_TMP%"
 
     if !ahead! gtr 0 (
-        echo Local branch is !ahead! commit(s) ahead. Pushing...
+        echo      -> Local branch is !ahead! commit(s) ahead. Pushing...
         git push
     ) else (
-        echo Branch is up-to-date with the remote. Nothing to push.
+        echo      -> Branch is up-to-date with the remote. Nothing to push.
     )
 )
 
-:cleanup
-:: Clean up the temporary file
-if exist "%GIT_STATUS_TMP%" del "%GIT_STATUS_TMP%"
-echo [DEBUG] Temp file cleaned up.
-
 :end
-echo.
+echo(
 echo Operation completed!
 pause
