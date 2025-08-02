@@ -36,17 +36,16 @@ if %errorlevel% neq 0 (
         git push --set-upstream origin %%i
     )
 ) else (
-    :: Use the modern, script-friendly git status to check ahead/behind counts
-    set "ahead=0"
-    rem The findstr command must look for "# branch.ab"
-    for /f "tokens=3" %%a in ('git status --porcelain=v2 --branch ^| findstr "# branch.ab"') do (
-        set "ahead=%%a"
-    )
-
-    :: The 'ahead' variable will contain a number like "+1" or "+0". Batch's "if gtr" handles this correctly.
-    if !ahead! gtr 0 (
-        echo Local branch is !ahead! commit(s) ahead. Pushing...
+    :: Check if local branch is ahead of remote
+    git status | find "ahead of" >nul
+    if !errorlevel! equ 0 (
+        echo Local branch has unpushed commits. Pushing...
         git push
+        if !errorlevel! equ 0 (
+            echo Push completed successfully.
+        ) else (
+            echo Push failed. Please check your network connection and permissions.
+        )
     ) else (
         echo Branch is up-to-date with the remote. Nothing to push.
     )
