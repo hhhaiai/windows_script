@@ -1,28 +1,23 @@
 @echo off
 setlocal enabledelayedexpansion
 
-echo GPP - Git Push Plus (Final Version)
+echo GPP - Git Push Plus (Version 4 - Final)
 
 :: -----------------------------------------------------------------------------
 :: Part 1: Commit local changes (if any)
 :: -----------------------------------------------------------------------------
 echo Checking for local changes...
 
-:: Check for any staged or modified files.
-git diff --quiet --cached --exit-code && git diff --quiet --exit-code
+:: A single, robust command to check if there are ANY uncommitted changes (staged or unstaged)
+git diff HEAD --quiet --exit-code
 if %errorlevel% neq 0 (
     echo.
-    echo [INFO] Changes detected. Proceeding with commit.
+    echo [INFO] Uncommitted changes detected. Proceeding with auto-commit.
     echo [WARNING] Using generic commit message "chore: auto-update". For meaningful history, consider committing manually.
-    echo [WARNING] Ensure .gitignore is configured to avoid committing unwanted files.
     echo.
     git add .
     git commit -m "chore: auto-update" >nul
-    if !errorlevel! equ 0 (
-        echo Changes committed successfully.
-    ) else (
-        echo Commit step resulted in no changes (perhaps only untracked files were added). Continuing...
-    )
+    echo Changes committed successfully.
 ) else (
     echo No local changes to commit.
 )
@@ -30,6 +25,7 @@ if %errorlevel% neq 0 (
 :: -----------------------------------------------------------------------------
 :: Part 2: Push commits to remote (if ahead)
 :: -----------------------------------------------------------------------------
+echo.
 echo Checking for commits to push...
 
 :: Check if upstream branch is configured
@@ -42,11 +38,12 @@ if %errorlevel% neq 0 (
 ) else (
     :: Use the modern, script-friendly git status to check ahead/behind counts
     set "ahead=0"
+    rem The findstr command must look for "# branch.ab"
     for /f "tokens=3" %%a in ('git status --porcelain=v2 --branch ^| findstr "# branch.ab"') do (
         set "ahead=%%a"
     )
 
-    :: The 'ahead' variable will contain "+N", which works directly in IF comparison
+    :: The 'ahead' variable will contain a number like "+1" or "+0". Batch's "if gtr" handles this correctly.
     if !ahead! gtr 0 (
         echo Local branch is !ahead! commit(s) ahead. Pushing...
         git push
