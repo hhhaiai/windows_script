@@ -2,11 +2,15 @@
 setlocal enabledelayedexpansion
 
 :: ============================================================================
-:: GPP - Git Push Plus (v5.1 - Final)
-:: A robust script to auto-commit and push changes.
+:: GPP - Git Push Plus (v5.2 - Bulletproof Edition)
+:: A robust script to auto-commit and push changes, designed to withstand
+:: cross-shell invocation issues (e.g., from PowerShell).
 :: ============================================================================
 
-echo GPP - Git Push Plus (Version 5.1 - Final)
+echo GPP - Git Push Plus (Version 5.2 - Bulletproof)
+
+:: Define the warning message in a standard variable to avoid delayed expansion issues with '!'.
+set "WARNING_MSG=[!] Using generic commit message "chore: auto-update"."
 
 :: -----------------------------------------------------------------------------
 :: Part 1: Commit local changes (if any)
@@ -14,14 +18,15 @@ echo GPP - Git Push Plus (Version 5.1 - Final)
 echo(
 echo [1/2] Checking for local changes...
 
-:: A single, robust command to check for ANY uncommitted changes.
 git diff HEAD --quiet --exit-code
 if %errorlevel% neq 0 (
     echo      -> Uncommitted changes detected. Proceeding with auto-commit.
-    :: Correctly escape the '!' character for echo when delayed expansion is on.
-    echo      [^!] Using generic commit message "chore: auto-update".
+    :: Echo the variable using standard '%' expansion, which is safe.
+    echo      %WARNING_MSG%
     git add .
-    git commit -m "chore: auto-update" >nul
+    :: Robustly silence the commit command by redirecting BOTH stdout and stderr.
+    :: This prevents asynchronous output stream conflicts.
+    git commit -m "chore: auto-update" >nul 2>&1
     echo      -> Changes committed successfully.
 ) else (
     echo      -> No local changes to commit.
@@ -33,17 +38,13 @@ if %errorlevel% neq 0 (
 echo(
 echo [2/2] Checking for commits to push...
 
-:: Get the current branch name
 for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "CURRENT_BRANCH=%%i"
 
-:: Robustly check if the current branch has a configured upstream remote.
 git config "branch.!CURRENT_BRANCH!.remote" >nul 2>&1
-:: Correct Batch syntax: use parentheses () for code blocks, not braces {}.
 if %errorlevel% neq 0 (
     echo      -> No upstream branch configured. Attempting initial push...
     git push --set-upstream origin !CURRENT_BRANCH!
 ) else (
-    :: Get ahead/behind counts using the stable temp file method.
     set "GIT_STATUS_TMP=%TEMP%\git_status_output.tmp"
     git status --porcelain=v2 --branch > "%GIT_STATUS_TMP%"
     
